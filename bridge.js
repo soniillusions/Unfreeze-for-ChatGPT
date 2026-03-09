@@ -31,3 +31,46 @@ window.addEventListener('message', (event) => {
     console.debug('[refinery-003-bridge] sendMessage failed:', err.message);
   });
 });
+
+// Bridge chrome.storage polyfill requests from MAIN world
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (!event.data || event.data.source !== 'refinery-003-storage') return;
+
+  const { type, keys, items, callbackId } = event.data;
+
+  if (type === 'get') {
+    chrome.storage.local.get(keys, (result) => {
+      window.postMessage({
+        source: 'refinery-003-storage',
+        callbackId,
+        result,
+      }, '*');
+    });
+  } else if (type === 'set') {
+    chrome.storage.local.set(items, () => {
+      window.postMessage({
+        source: 'refinery-003-storage',
+        callbackId,
+        result: null,
+      }, '*');
+
+      if (items.maxMessages !== undefined) {
+        chrome.storage.local.get({ maxMessages: 250 }, (settings) => {
+          window.postMessage({
+            source: 'refinery-003-settings',
+            maxMessages: settings.maxMessages,
+          }, '*');
+        });
+      }
+    });
+  } else if (type === 'remove') {
+    chrome.storage.local.remove(keys, () => {
+      window.postMessage({
+        source: 'refinery-003-storage',
+        callbackId,
+        result: null,
+      }, '*');
+    });
+  }
+});

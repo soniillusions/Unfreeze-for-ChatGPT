@@ -301,4 +301,80 @@
   };
 
   console.log('[refinery-003] fetch intercept installed (inline-status)');
+
+  // ============================================
+  // chrome.storage polyfill for DevTools convenience
+  // ============================================
+
+  if (!window.chrome) window.chrome = {};
+  if (!window.chrome.storage) window.chrome.storage = {};
+  if (!window.chrome.storage.local) {
+    window.chrome.storage.local = {
+      get: function(keys, callback) {
+        const callbackId = 'storage-callback-' + Date.now() + '-' + Math.random();
+        return new Promise((resolve) => {
+          const listener = function(event) {
+            if (event.data?.source === 'refinery-003-storage' && event.data.callbackId === callbackId) {
+              window.removeEventListener('message', listener);
+              const result = event.data.result !== undefined ? event.data.result : undefined;
+              if (callback) callback(result);
+              resolve(result);
+            }
+          };
+          window.addEventListener('message', listener);
+
+          window.postMessage({
+            source: 'refinery-003-storage',
+            type: 'get',
+            keys: keys,
+            callbackId: callbackId,
+          }, '*');
+        });
+      },
+
+      set: function(items, callback) {
+        const callbackId = 'storage-callback-' + Date.now() + '-' + Math.random();
+        return new Promise((resolve) => {
+          const listener = function(event) {
+            if (event.data?.source === 'refinery-003-storage' && event.data.callbackId === callbackId) {
+              window.removeEventListener('message', listener);
+              if (callback) callback();
+              resolve();
+            }
+          };
+          window.addEventListener('message', listener);
+
+          window.postMessage({
+            source: 'refinery-003-storage',
+            type: 'set',
+            items: items,
+            callbackId: callbackId,
+          }, '*');
+        });
+      },
+
+      remove: function(keys, callback) {
+        const callbackId = 'storage-callback-' + Date.now() + '-' + Math.random();
+        return new Promise((resolve) => {
+          const listener = function(event) {
+            if (event.data?.source === 'refinery-003-storage' && event.data.callbackId === callbackId) {
+              window.removeEventListener('message', listener);
+              if (callback) callback();
+              resolve();
+            }
+          };
+          window.addEventListener('message', listener);
+
+          window.postMessage({
+            source: 'refinery-003-storage',
+            type: 'remove',
+            keys: keys,
+            callbackId: callbackId,
+          }, '*');
+        });
+      },
+    };
+  }
+
+  console.log('[refinery-003] chrome.storage polyfill installed');
 })();
